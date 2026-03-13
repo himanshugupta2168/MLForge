@@ -1,0 +1,15 @@
+# python
+*/.venv
+*/__pycache__
+
+# node
+*/node_modules
+*/.next
+
+# env
+.env
+
+# storage
+storage/datasets
+storage/models
+storage/cleaned
