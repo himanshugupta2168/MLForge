@@ -22,18 +22,20 @@ export async function POST(req: NextRequest) {
     const publicDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"]
     const isPublicDomain = publicDomains.includes(domain.toLowerCase())
 
-    // Guard: should not re-register an existing user
+    // Guard: should not re-register an existing user (except for OAuth onboarding)
     const existing = await prisma.user.findUnique({ where: { email } })
-    if (existing) {
+    const isOAuthOnboarding = existing && password === "OAUTH_USER"
+
+    if (existing && !isOAuthOnboarding) {
         return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 })
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = isOAuthOnboarding ? existing.password : await bcrypt.hash(password, 10)
 
     // ── CASE 1: Joining an Existing Organization ──────────────────
     if (selectedOrgId) {
         const result = await prisma.$transaction(async (tx) => {
-            const user = await tx.user.create({
+            const user = isOAuthOnboarding ? existing : await tx.user.create({
                 data: { name, email, password: hashedPassword, emailVerified: new Date() }
             })
             const membership = await tx.organizationMember.create({
@@ -81,9 +83,9 @@ export async function POST(req: NextRequest) {
         slug = `${baseSlug}-${counter++}`
     }
 
-    // Create user + org + membership in one transaction
+    // Create user (if not exists) + org + membership in one transaction
     const result = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
+        const user = isOAuthOnboarding ? existing : await tx.user.create({
             data: { name, email, password: hashedPassword, emailVerified: new Date() }
         })
 

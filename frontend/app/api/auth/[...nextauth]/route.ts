@@ -46,6 +46,45 @@ export const authOptions = {
   session: { strategy: "jwt" as const },
 
   callbacks: {
+    async signIn({ user, account }: any) {
+      if (account.type === "oauth" && user.email) {
+        // Check if user already has membership
+        const existingMembership = await prisma.organizationMember.findFirst({
+          where: { userId: user.id }
+        });
+
+        if (!existingMembership) {
+          const domain = user.email.split("@")[1];
+          const publicDomains = ["gmail.com", "yahoo.com", "outlook.com", "hotmail.com"];
+
+          if (!publicDomains.includes(domain.toLowerCase())) {
+            // Find an organization that has members with the same email domain
+            const existingDomainOrg = await prisma.organization.findFirst({
+              where: {
+                members: {
+                  some: {
+                    user: { email: { endsWith: `@${domain}` } }
+                  }
+                }
+              }
+            });
+
+            if (existingDomainOrg) {
+              await prisma.organizationMember.create({
+                data: {
+                  userId: user.id,
+                  organizationId: existingDomainOrg.id,
+                  role: "MEMBER",
+                  status: "PENDING",
+                }
+              });
+            }
+          }
+        }
+      }
+      return true;
+    },
+
     // Embed user roles + org status into the JWT
     async jwt({ token, user }: any) {
       if (user?.id) {

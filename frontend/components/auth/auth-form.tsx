@@ -24,22 +24,33 @@ const SIGNUP_STEPS: { id: Step; label: string }[] = [
     { id: "verify-otp", label: "Verify" },
 ]
 
-function StepDots({ current }: { current: Step }) {
+function StepDots({ current, onStartOver }: { current: Step; onStartOver?: () => void }) {
     const steps = SIGNUP_STEPS
     const currentIdx = steps.findIndex(s => s.id === current)
     if (currentIdx === -1) return null // login flow — no dots
     return (
-        <div className="flex items-center gap-2 mb-8">
-            {steps.map((s, i) => (
-                <div key={s.id} className="flex items-center gap-2">
-                    <div className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${i < currentIdx ? "bg-white/60" : i === currentIdx ? "bg-white" : "bg-white/20"
-                        }`} />
-                    {i < steps.length - 1 && <div className={`h-px w-5 transition-all duration-300 ${i < currentIdx ? "bg-white/30" : "bg-white/10"}`} />}
-                </div>
-            ))}
-            <span className="ml-2 text-[10px] text-white/30 uppercase tracking-widest">
-                {currentIdx + 1} / {steps.length}
-            </span>
+        <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-2">
+                {steps.map((s, i) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                        <div className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${i < currentIdx ? "bg-white/60" : i === currentIdx ? "bg-white" : "bg-white/20"
+                            }`} />
+                        {i < steps.length - 1 && <div className={`h-px w-5 transition-all duration-300 ${i < currentIdx ? "bg-white/30" : "bg-white/10"}`} />}
+                    </div>
+                ))}
+                <span className="ml-2 text-[10px] text-white/30 uppercase tracking-widest">
+                    {currentIdx + 1} / {steps.length}
+                </span>
+            </div>
+            {onStartOver && (
+                <button
+                    type="button"
+                    onClick={onStartOver}
+                    className="text-[10px] text-white/20 hover:text-white/40 transition-colors uppercase tracking-widest"
+                >
+                    Start over
+                </button>
+            )}
         </div>
     )
 }
@@ -147,6 +158,69 @@ export function AuthForm() {
         return () => clearTimeout(t)
     }, [resendTimer])
 
+    // ── Persist and restore auth state ─────────────────────────────
+    const saveAuthState = useCallback(() => {
+        const state = {
+            step,
+            email,
+            name,
+            password,
+            orgName,
+            orgSize,
+            orgIndustry,
+            otp,
+            showPassword,
+            selectedOrgId,
+            resendTimer,
+            timestamp: Date.now()
+        }
+        localStorage.setItem("mlforge-auth-state", JSON.stringify(state))
+    }, [step, email, name, password, orgName, orgSize, orgIndustry, otp, showPassword, selectedOrgId, resendTimer])
+
+    const restoreAuthState = useCallback(() => {
+        try {
+            const saved = localStorage.getItem("mlforge-auth-state")
+            if (!saved) return
+
+            const state = JSON.parse(saved)
+            // Only restore if less than 30 minutes old
+            if (Date.now() - state.timestamp > 30 * 60 * 1000) {
+                localStorage.removeItem("mlforge-auth-state")
+                return
+            }
+
+            setStep(state.step || "email")
+            setEmail(state.email || "")
+            setName(state.name || "")
+            setPassword(state.password || "")
+            setOrgName(state.orgName || "")
+            setOrgSize(state.orgSize || "")
+            setOrgIndustry(state.orgIndustry || "")
+            setOtp(state.otp || "")
+            setShowPassword(state.showPassword || false)
+            setSelectedOrgId(state.selectedOrgId || null)
+            setResendTimer(state.resendTimer || 0)
+        } catch (error) {
+            // Invalid state, clear it
+            localStorage.removeItem("mlforge-auth-state")
+        }
+    }, [])
+
+    const clearAuthState = useCallback(() => {
+        localStorage.removeItem("mlforge-auth-state")
+    }, [])
+
+    // Track if component has hydrated
+    const [isHydrated, setIsHydrated] = useState(false)
+    useEffect(() => {
+        setIsHydrated(true)
+    }, [])
+
+    // Save state on changes
+    useEffect(() => {
+        saveAuthState()
+    }, [saveAuthState])
+
     // ── Fetch suggestions when reaching Org step ──────────────────
     useEffect(() => {
         if (step === "signup-org" && email) {
@@ -162,6 +236,17 @@ export function AuthForm() {
     }, [step, email])
 
     const err = (msg: string) => { setError(msg); setIsLoading(false) }
+
+    // ── Social Login ──────────────────────────────────────────────
+    const handleSocialLogin = async (provider: "github" | "google") => {
+        setIsLoading(true)
+        setError(null)
+        try {
+            await signIn(provider, { callbackUrl: "/dashboard" })
+        } catch {
+            err(`Failed to sign in with ${provider}.`)
+        }
+    }
 
     // ── Step 1: Email check ────────────────────────────────────────
     const handleEmailSubmit = async (e: React.FormEvent) => {
@@ -186,7 +271,10 @@ export function AuthForm() {
         try {
             const result = await signIn("credentials", { email, password, redirect: false, callbackUrl: "/dashboard" })
             if (result?.error) err("Invalid email or password.")
-            else window.location.href = "/dashboard"
+            else {
+                clearAuthState()
+                window.location.href = "/dashboard"
+            }
         } catch { err("An unexpected error occurred.") }
         finally { setIsLoading(false) }
     }
@@ -241,6 +329,7 @@ export function AuthForm() {
             // Sign in with the new credentials
             const result = await signIn("credentials", { email, password, redirect: false, callbackUrl: "/dashboard" })
             if (result?.error) return err("Account created but sign-in failed. Please sign in manually.")
+            clearAuthState()
             window.location.href = "/dashboard"
         } catch { err("An unexpected error occurred.") }
         finally { setIsLoading(false) }
@@ -260,10 +349,21 @@ export function AuthForm() {
         } catch { setError("Could not resend code.") }
     }
 
-    const handleSocialLogin = async (provider: "github" | "google") => {
-        setIsLoading(true)
-        await signIn(provider, { callbackUrl: "/dashboard" })
-    }
+    const handleStartOver = useCallback(() => {
+        clearAuthState()
+        setStep("email")
+        setEmail("")
+        setName("")
+        setPassword("")
+        setOrgName("")
+        setOrgSize("")
+        setOrgIndustry("")
+        setOtp("")
+        setError(null)
+        setSuggestions([])
+        setSelectedOrgId(null)
+        setResendTimer(0)
+    }, [clearAuthState])
 
     // ── Render ─────────────────────────────────────────────────────
     return (
@@ -275,7 +375,7 @@ export function AuthForm() {
             </div>
 
             {/* Step dots (signup only) */}
-            <StepDots current={step} />
+            <StepDots current={step} onStartOver={step !== "email" ? handleStartOver : undefined} />
 
             <ErrorMsg msg={error} />
 
@@ -293,6 +393,28 @@ export function AuthForm() {
                         </div>
                         <SubmitBtn loading={isLoading} label="Continue" />
                     </form>
+
+                    {/* Show continue option if there's saved state (only after hydration) */}
+                    {isHydrated && (() => {
+                        try {
+                            const saved = localStorage.getItem("mlforge-auth-state")
+                            if (!saved) return null
+                            const state = JSON.parse(saved)
+                            if (Date.now() - state.timestamp > 30 * 60 * 1000) return null
+                            if (state.step === "email" || !state.email) return null
+                            return (
+                                <div className="text-center mb-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => restoreAuthState()}
+                                        className="text-[12px] text-white/50 hover:text-white/80 transition-colors underline"
+                                    >
+                                        Continue where you left off with {state.email}
+                                    </button>
+                                </div>
+                            )
+                        } catch { return null }
+                    })()}
 
                     <div className="relative mb-6">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.07]" /></div>
