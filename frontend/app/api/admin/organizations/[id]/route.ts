@@ -179,3 +179,30 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update member" }, { status: 500 })
   }
 }
+
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user || session.user.globalRole !== UserRole.SUPERADMIN) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const { id: orgId } = await params
+    const org = await prisma.organization.findUnique({ where: { id: orgId } })
+    if (!org) return NextResponse.json({ error: "Organization not found" }, { status: 404 })
+
+    await prisma.$transaction([
+      prisma.organizationMember.deleteMany({ where: { organizationId: orgId } }),
+      prisma.organization.delete({ where: { id: orgId } }),
+    ])
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error("Failed to delete organization:", err)
+    return NextResponse.json({ error: "Failed to delete organization" }, { status: 500 })
+  }
+}

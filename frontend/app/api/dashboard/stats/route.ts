@@ -18,6 +18,8 @@ export async function GET(req: NextRequest) {
       // SUPER ADMIN STATS
       const organisations = await prisma.organization.findMany({
         include: { members: true },
+        orderBy: { createdAt: "desc" },
+        take:10,
       })
 
       const users = await prisma.user.findMany()
@@ -37,7 +39,6 @@ export async function GET(req: NextRequest) {
       // Recent organizations (last 5)
       const recentOrganizations = organisations
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-        .slice(0, 5)
         .map(org => ({
           id: org.id,
           name: org.name,

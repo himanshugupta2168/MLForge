@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { ConfirmProvider } from "@/context/ConfirmProvider";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -28,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${outfit.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <ConfirmProvider>{children}</ConfirmProvider>
+        </SessionProvider>
       </body>
     </html>
   );

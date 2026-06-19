@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Plus, Edit2, Trash2, Users, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useConfirm } from "@/context/ConfirmProvider"
 import {
   Table,
   TableBody,
@@ -45,10 +46,27 @@ export default function OrganizationsPage() {
     fetchOrganizations()
   }, [])
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to delete this organization?")) {
-      setOrganizations(organizations.filter(org => org.id !== id))
-    }
+  // confirm modal from context
+  const { showConfirm } = useConfirm()
+
+  const handleDelete = async (id: string) => {
+    const confirmed = await (showConfirm ? showConfirm({
+      title: "Delete organization",
+      description: "This action will permanently delete the organization and its memberships. Are you sure?",
+      okText: "Delete",
+      cancelText: "Cancel",
+    }) : Promise.resolve(window.confirm("Are you sure you want to delete this organization?")))
+
+    if (!confirmed) return
+
+    const res = await fetch(`/api/admin/organizations/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    })
+    const text = await res.text()
+    console.log("Delete response:", res.status, text)
+    if (!res.ok) throw new Error("Failed to delete")
+    setOrganizations(organizations.filter(org => org.id !== id))
   }
 
   return (

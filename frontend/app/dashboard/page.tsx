@@ -1,8 +1,16 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Building2, Users, TrendingUp, Clock, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import {
+  Building2,
+  Users,
+  TrendingUp,
+  Clock,
+  Plus,
+  RefreshCw,
+  MoveRight
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,42 +18,42 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import Link from "next/link"
+} from "@/components/ui/table";
+import Link from "next/link";
 
 type DashboardStats = {
-  isSuperAdmin: boolean
+  isSuperAdmin: boolean;
   stats: {
-    totalOrganizations?: number
-    totalUsers?: number
-    totalMembers?: number
-    totalRevenue?: number
-    organizationCount?: number
-    recentOrgs?: any[]
-  }
-  recentOrganizations?: any[]
-}
+    totalOrganizations?: number;
+    totalUsers?: number;
+    totalMembers?: number;
+    totalRevenue?: number;
+    organizationCount?: number;
+    recentOrgs?: any[];
+  };
+  recentOrganizations?: any[];
+};
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardStats | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [data, setData] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/dashboard/stats");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const result = await res.json();
+      setData(result);
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch("/api/dashboard/stats")
-        if (!res.ok) throw new Error("Failed to fetch")
-        const result = await res.json()
-        setData(result)
-      } catch (error) {
-        console.error("Failed to fetch dashboard stats:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchStats()
-  }, [])
+    fetchStats();
+  }, []);
 
   if (isLoading) {
     return (
@@ -56,7 +64,7 @@ export default function DashboardPage() {
           <div className="h-32 bg-muted rounded-lg animate-pulse" />
         </div>
       </div>
-    )
+    );
   }
 
   if (!data) {
@@ -64,12 +72,17 @@ export default function DashboardPage() {
       <div className="text-center py-12">
         <p className="text-muted-foreground">Failed to load dashboard</p>
       </div>
-    )
+    );
   }
 
   // SUPER ADMIN DASHBOARD
   if (data.isSuperAdmin) {
-    const { totalOrganizations = 0, totalUsers = 0, totalMembers = 0, totalRevenue = 0 } = data.stats
+    const {
+      totalOrganizations = 0,
+      totalUsers = 0,
+      totalMembers = 0,
+      totalRevenue = 0,
+    } = data.stats;
 
     return (
       <div className="space-y-6">
@@ -77,14 +90,22 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Platform Overview</h1>
-            <p className="text-muted-foreground mt-1">Manage and monitor all organizations</p>
+            <p className="text-muted-foreground mt-1">
+              Manage and monitor all organizations
+            </p>
           </div>
-          <Link href="/dashboard/organizations">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Organization
+          <div className="flex flex-row gap-4">
+            <Button className="gap-2" onClick={fetchStats}>
+              <RefreshCw className="h-4 w-4 cursor-pointer" />
+              Sync Changes
             </Button>
-          </Link>
+            <Link href="/dashboard/organizations">
+              <Button className="gap-2 cursor-pointer">
+                <Plus className="h-4 w-4" />
+                New Organization
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Key Metrics */}
@@ -92,7 +113,9 @@ export default function DashboardPage() {
           <div className="border rounded-lg p-6 bg-card hover:bg-card/80 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Organizations</p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Total Organizations
+                </p>
                 <p className="text-4xl font-bold mt-2">{totalOrganizations}</p>
               </div>
               <Building2 className="h-12 w-12 text-primary/30" />
@@ -102,7 +125,9 @@ export default function DashboardPage() {
           <div className="border rounded-lg p-6 bg-card hover:bg-card/80 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Users</p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Total Unique Users
+                </p>
                 <p className="text-4xl font-bold mt-2">{totalUsers}</p>
               </div>
               <Users className="h-12 w-12 text-blue-500/30" />
@@ -112,7 +137,9 @@ export default function DashboardPage() {
           <div className="border rounded-lg p-6 bg-card hover:bg-card/80 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Members</p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Total Members across Organizations
+                </p>
                 <p className="text-4xl font-bold mt-2">{totalMembers}</p>
               </div>
               <Users className="h-12 w-12 text-purple-500/30" />
@@ -122,8 +149,12 @@ export default function DashboardPage() {
           <div className="border rounded-lg p-6 bg-card hover:bg-card/80 transition-colors cursor-pointer">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Revenue</p>
-                <p className="text-4xl font-bold mt-2">${totalRevenue.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground font-medium">
+                  Total Revenue
+                </p>
+                <p className="text-4xl font-bold mt-2">
+                  ${totalRevenue.toLocaleString()}
+                </p>
               </div>
               <TrendingUp className="h-12 w-12 text-green-500/30" />
             </div>
@@ -138,13 +169,13 @@ export default function DashboardPage() {
               Recent Organizations
             </h2>
             <Link href="/dashboard/organizations">
-              <Button className="gap-2">View All</Button>
+              <Button className="gap-2 cursor-pointer" >View All</Button>
             </Link>
           </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+          <div className="max-h-96 overflow-y-auto px-6">
+            <Table className="w-full">
+              <TableHeader className="sticky top-0 bg-card z-10">
                 <TableRow>
                   <TableHead>Organization</TableHead>
                   <TableHead>Plan</TableHead>
@@ -153,24 +184,30 @@ export default function DashboardPage() {
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {data.recentOrganizations && data.recentOrganizations.length > 0 ? (
+                {data.recentOrganizations &&
+                data.recentOrganizations.length > 0 ? (
                   data.recentOrganizations.map((org: any) => (
                     <TableRow key={org.id}>
                       <TableCell className="font-medium">{org.name}</TableCell>
+
                       <TableCell>
                         <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
                           {org.plan}
                         </span>
                       </TableCell>
+
                       <TableCell>{org.membersCount} members</TableCell>
+
                       <TableCell className="text-muted-foreground">
                         {org.createdAt}
                       </TableCell>
+
                       <TableCell className="text-right">
-                        <Link href={`/dashboard/organizations`}>
+                        <Link href={`/dashboard/organizations/${org.id}`}>
                           <button className="text-xs font-medium text-primary hover:underline">
-                            View
+                            <MoveRight className="h-4 w-4 inline-block hover:scale-x-150" />
                           </button>
                         </Link>
                       </TableCell>
@@ -178,7 +215,10 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell
+                      colSpan={5}
+                      className="text-center py-8 text-muted-foreground"
+                    >
                       No organizations yet
                     </TableCell>
                   </TableRow>
@@ -187,39 +227,12 @@ export default function DashboardPage() {
             </Table>
           </div>
         </div>
-
-        {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dashboard/organizations" className="group">
-            <div className="border rounded-lg p-6 bg-card hover:border-primary transition-colors group-hover:shadow-lg">
-              <Building2 className="h-6 w-6 mb-3 text-primary group-hover:translate-y-[-2px] transition-transform" />
-              <h3 className="font-semibold mb-2">Manage Organizations</h3>
-              <p className="text-sm text-muted-foreground">View all organizations and manage their details</p>
-            </div>
-          </Link>
-
-          <Link href="/dashboard/logs" className="group">
-            <div className="border rounded-lg p-6 bg-card hover:border-primary transition-colors group-hover:shadow-lg">
-              <TrendingUp className="h-6 w-6 mb-3 text-green-500 group-hover:translate-y-[-2px] transition-transform" />
-              <h3 className="font-semibold mb-2">Billing & Revenue</h3>
-              <p className="text-sm text-muted-foreground">Track revenue and billing information</p>
-            </div>
-          </Link>
-
-          <Link href="/dashboard/settings" className="group">
-            <div className="border rounded-lg p-6 bg-card hover:border-primary transition-colors group-hover:shadow-lg">
-              <Users className="h-6 w-6 mb-3 text-blue-500 group-hover:translate-y-[-2px] transition-transform" />
-              <h3 className="font-semibold mb-2">Platform Settings</h3>
-              <p className="text-sm text-muted-foreground">Configure platform-wide settings</p>
-            </div>
-          </Link>
-        </div>
       </div>
-    )
+    );
   }
 
   // REGULAR USER DASHBOARD
-  const { organizationCount = 0, recentOrgs = [] } = data.stats
+  const { organizationCount = 0, recentOrgs = [] } = data.stats;
 
   return (
     <div className="space-y-6">
@@ -227,7 +240,9 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">My Organizations</h1>
-          <p className="text-muted-foreground mt-1">Manage your organizations and projects</p>
+          <p className="text-muted-foreground mt-1">
+            Manage your organizations and projects
+          </p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
@@ -240,7 +255,9 @@ export default function DashboardPage() {
         <div className="border rounded-lg p-6 bg-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground font-medium">Organizations</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                Organizations
+              </p>
               <p className="text-4xl font-bold mt-2">{organizationCount}</p>
             </div>
             <Building2 className="h-12 w-12 text-primary/30" />
@@ -250,8 +267,12 @@ export default function DashboardPage() {
         <div className="border rounded-lg p-6 bg-card">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground font-medium">Total Members</p>
-              <p className="text-4xl font-bold mt-2">{data.stats.totalMembers || 0}</p>
+              <p className="text-sm text-muted-foreground font-medium">
+                Total Members
+              </p>
+              <p className="text-4xl font-bold mt-2">
+                {data.stats.totalMembers || 0}
+              </p>
             </div>
             <Users className="h-12 w-12 text-blue-500/30" />
           </div>
@@ -295,10 +316,12 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No organizations yet. Create one to get started!</p>
+            <p className="text-muted-foreground">
+              No organizations yet. Create one to get started!
+            </p>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
